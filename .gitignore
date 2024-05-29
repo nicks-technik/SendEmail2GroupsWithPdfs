@@ -1,0 +1,10 @@
+*.pickle
+*.json
+__pycache__/
+.mypy_cache
+.venv/***
+.vscode/launch.json
+pdf/groups.csv
+.env
+config/mail.txt
+config/groups.csv
