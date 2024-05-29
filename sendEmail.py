@@ -24,13 +24,6 @@ import mimetypes
 import pandas as pd
 from dotenv import load_dotenv
 
-file_attachments = []
-
-# CLIENT_SECRET_FILE = "240527_client_secret_thorstenh_sendEmail.json"
-API_NAME = "gmail"
-API_VERSION = "v1"
-SCOPES = ["https://mail.google.com/"]
-
 
 def loadEnvVars():
     """
@@ -135,7 +128,7 @@ def loadGroupsCsv():
         FileNotFoundError: If the CSV file is not found
     """
     global df
-
+    print("Loading CSV file...")
     try:
         # Read the CSV file using pandas.read_csv
         # df = pd.read_csv(PDF_SUBFOLDER_PATH + "/" + CSV_FILE, delimiter=";")
@@ -143,6 +136,7 @@ def loadGroupsCsv():
 
         # Print the first few rows of the DataFrame (optional)
         print(df.head())
+        print()
 
     except FileNotFoundError:
         print(f"Error: CSV file '{CSV_FILE}' not found.")
@@ -167,7 +161,6 @@ def listFiles():
     that belong to the same group.
     """
     global file_attachments
-    global PDF_SUBFOLDER_PATH
 
     file_attachments = []
     last_one = ""
@@ -177,25 +170,19 @@ def listFiles():
 
     # Sort the list of files (ascending order)
     files.sort()
-    print(files)
-    print()
+    print(f"All files in {PDF_SUBFOLDER_PATH}: {files}")
 
     # Print each sorted file
     for filename in files:
-        print(f"filename: {filename}")
-        # Construct the full path
-        # full_path = os.path.join(PDF_SUBFOLDER_PATH, filename)
 
         if not filename.endswith(".pdf"):
             continue
 
         group_name = " ".join(filename.split(" ")[:2])
-        print(f"group_name: {group_name}, last_one: {last_one}")
 
         # Check if the group name has changed or first run
         if (group_name != last_one) and (last_one != ""):
-            print(f"file_attachmentsif: {file_attachments}")
-            sendEmail(last_one)
+            prepareAndSendEmail(last_one)
             last_one = group_name
             file_attachments = []
             file_attachments.append(os.path.join(PDF_SUBFOLDER_PATH, filename))
@@ -203,9 +190,9 @@ def listFiles():
             last_one = group_name
             file_attachments.append(os.path.join(PDF_SUBFOLDER_PATH, filename))
 
+    # Check if the last attachment is already sended
     if len(file_attachments) > 0:
-        print(f"file_attachmentslen: {file_attachments}")
-        sendEmail(group_name)
+        prepareAndSendEmail(group_name)
 
 
 def getEmailFromGroup(groupname):
@@ -231,7 +218,46 @@ def getEmailFromGroup(groupname):
         return email
 
 
-def sendEmail(groupname):
+def convertAttachment(attachment):
+    """
+    Converts the given attachment file to a mime base object
+
+    Args:
+        attachment (str): The path to the attachment file
+
+    Returns:
+        MIMEBase: A mime base object containing the attachment file
+    """
+    print(f"attachment: {attachment}")
+    # Get the content type of the file
+    content_type, encoding = mimetypes.guess_type(attachment)
+    # Split the content type into main and sub type
+    main_type, sub_type = content_type.split("/", 1)
+    # Get the file name
+    file_name = os.path.basename(attachment)
+
+    # Open the file in binary mode
+    f = open(attachment, "rb")
+
+    # Create a mime base object
+    attachment_converted = MIMEBase(main_type, sub_type)
+    # Set the payload of the mime base object
+    attachment_converted.set_payload(f.read())
+    # Add the content disposition header
+    attachment_converted.add_header(
+        "Content-Disposition", "attachment", filename=file_name
+    )
+    # Encode the attachment
+    encoders.encode_base64(attachment_converted)
+
+    # Close the file
+    f.close()
+
+    # Return the mime base object
+    return attachment_converted
+
+
+def prepareAndSendEmail(groupname):
     """
     Sends an email with the files in the given subfolder
 
@@ -254,12 +280,6 @@ def sendEmail(groupname):
     # Set the subject of the email
     mimeMessage["subject"] = MAIL_SUBJECT
 
-    # Create the HTML body of the email
-    # html_body = """
-    # <p style="font-family: Arial, sans-serif; font-size: 16px;">Hi [Group Name],</p>
-    # <p>Here are the files attached to this email.</p>
-    # <p><i>Please note: This email is automatically generated.</i></p>
-    # """
     # Replace the placeholder with the group name
     # html_body = html_body.replace("[Group Name]", group_name)  # Replace placeholder
 
@@ -271,33 +291,7 @@ def sendEmail(groupname):
 
     # Attach the files
     for attachment in file_attachments:
-        print(f"attachment: {attachment}")
-        # Get the content type of the file
-        content_type, encoding = mimetypes.guess_type(attachment)
-        # Split the content type into main and sub type
-        main_type, sub_type = content_type.split("/", 1)
-        # Get the file name
-        file_name = os.path.basename(attachment)
-
-        # Open the file in binary mode
-        f = open(attachment, "rb")
-
-        # Create a mime base object
-        attachment_converted = MIMEBase(main_type, sub_type)
-        # Set the payload of the mime base object
-        attachment_converted.set_payload(f.read())
-        # Add the content disposition header
-        attachment_converted.add_header(
-            "Content-Disposition", "attachment", filename=file_name
-        )
-        # Encode the attachment
-        encoders.encode_base64(attachment_converted)
-
-        # Close the file
-        f.close()
-
-        # Attach the mime base object to the mime message
-        mimeMessage.attach(attachment_converted)
+        mimeMessage.attach(convertAttachment(attachment))
 
     # Convert the mime message to a safe base64 string
     raw_string = base64.urlsafe_b64encode(mimeMessage.as_bytes()).decode()
@@ -316,8 +310,10 @@ def sendEmail(groupname):
         # Move the sent files to the old subfolder
         moveFile2Old()
 
+        print()
+
     except Exception as e:
-        print(f"Error sending email: {e}")
+        print(f"Error sending email two {groupname} :  {e}")
 
 
 def moveFile2Old():
@@ -332,25 +328,38 @@ def moveFile2Old():
     -------
     None
     """
-    # Move the sent files to the old subfolder
     for attachment in file_attachments:
 
         file_name = os.path.basename(attachment)
-        print(f"file_namemoveFile2Old: {file_name}")
 
         # Get the directory path
         directory_path = os.path.dirname(attachment)
-        print(f"directory_pathmoveFile2Old: {directory_path}")
 
         # Rename the file by moving it to the old subfolder
         os.rename(attachment, f"{PDF_SUBFOLDER_PATH}/old/{file_name}")
 
+        print(f"File '{file_name}' moved to the old subfolder.")
+
 
 # Load the environment variables from .env file
+def generateMailService():
+    """
+    Generates the procedure for the sendEmail.py script
+    """
+    global service
+
+    API_NAME = "gmail"
+    API_VERSION = "v1"
+    SCOPES = ["https://mail.google.com/"]
+
+    # Create the Gmail API service, inclusive the pickle token file
+    service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
+
+
 loadEnvVars()
 
-# Create the Gmail API service, inclusive the pickle token file
-service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
+# Generate the Gmail API service client
+generateMailService()
 
 # Loads the CSV file and prints the first few rows
 loadGroupsCsv()
