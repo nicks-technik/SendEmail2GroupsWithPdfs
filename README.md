@@ -4,6 +4,24 @@ The program searches for PDF files in a special naming format (group_name+attach
 
 The addresses are loaded from a CSV file containing the group name and the email addresses.
 
+## File name format of the PDF files
+
+The two spaces (also after the Firstname) are important, because they are referenced for the search. All stuff behind is not important. Only the .pdf extension.
+
+Groupname           additional Stuff .pdf
+
+Examples:
+
+```text
+Lastname Firstname xxxxxxxxxxxx xx x x.pdf
+Smith Kaith bill.pdf
+Gilles Tom Bill.pdf
+Smith Kaith incoice.pdf
+Smith Keith chocolate.pdf
+Gilles Tom cake.pdf
+Mueller Craig chocolate cake.pdf
+```
+
 ## To do:
 
 * The difficult part is to create the Google MAIL API Json file according to the video [Getting Started With Google APIs For Python Development from Jie Jenn](https://www.youtube.com/watch?v=PKLG5pfs4nY&t=0s). IMPORTANT: Activate Google Mail API
