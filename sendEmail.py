@@ -42,7 +42,7 @@ def setupLogging():
     print(f"LOG_LEVEL: {LOG_LEVEL}")
 
     # Load the LOG_FILE_NAME
-    LOG_FILE_NAME = os.getenv("ENV_LOG_FILE_NAME", "INFO")
+    LOG_FILE_NAME = os.getenv("ENV_LOG_FILE_NAME")
     print(f"LOG_FILE: {LOG_FILE_NAME}")
 
     logger = logging.getLogger(__name__)
@@ -342,6 +342,10 @@ def prepareAndSendEmail(groupname):
     raw_string = base64.urlsafe_b64encode(mimeMessage.as_bytes()).decode()
 
     if ASK_FOR_SENDING:
+
+        print()
+        print(f"Sending email to {emailaddress} for group {groupname} ")
+        print(f"Attachments: {file_attachments}")
         # print("\tDo You Want To Continue (Y/y)es Or (N/n)o?")
         cont = input("Do you want to continue sending email? (Y/y)es/(N/n)o > ")
 
@@ -419,7 +423,7 @@ loadEnvVars()
 
 # Generate the Gmail API service client
 generateMailService()
-setupLogging()
+# setupLogging()
 
 # Loads the CSV file and prints the first few rows
 loadGroupsCsv()
