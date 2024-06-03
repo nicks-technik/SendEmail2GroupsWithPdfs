@@ -24,6 +24,45 @@ import mimetypes
 import pandas as pd
 from dotenv import load_dotenv
 
+import logging
+
+
+def setupLogging():
+
+    global LOG_LEVEL
+
+    load_dotenv()
+
+    # Load the LOG_LEVEL
+    LOG_LEVEL = os.getenv("ENV_LOG_LEVEL", "DEBUG").upper()
+    # LOG_LEVEL = os.getenv("ENV_LOG_LEVEL")
+    print(f"LOG_LEVEL: {LOG_LEVEL}")
+
+    LOG_LEVEL = logging.DEBUG
+
+    global LOG_FILE_NAME
+    # Load the LOG_FILE_NAME
+    LOG_FILE_NAME = os.getenv("ENV_LOG_FILE_NAME", "INFO")
+    print(f"LOG_FILE: {LOG_FILE_NAME}")
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(level=LOG_LEVEL)
+
+    formatter = logging.Formatter("%(asctime)s:%(name)s:%(message)s")
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(LOG_LEVEL)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    file_handler = logging.FileHandler(LOG_FILE_NAME)
+    file_handler.setLevel(LOG_LEVEL)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+
+setupLogging()
+
 
 def loadEnvVars():
     """
@@ -50,31 +89,35 @@ def loadEnvVars():
     global PDF_SUBFOLDER_PATH
     global MAIL_SUBJECT
     global HTML_BODY_FILE
-    global html_body
+    global HTML_BODY
 
     # Load the Client Secret File
     CLIENT_SECRET_FILE = os.getenv("ENV_SECURITY_JSON")
-    print(f"Client Secret File: {CLIENT_SECRET_FILE}")
+    logging.debug(f"Client Secret File: {CLIENT_SECRET_FILE}")
 
     # Load the CSV Group File
     CSV_FILE = os.getenv("ENV_CSV_FILE")
-    print(f"CSV Group File: {CSV_FILE}")
+    logging.debug(f"CSV Group File: {CSV_FILE}")
 
     # Load the PDF Subfolder Path
     PDF_SUBFOLDER_PATH = os.getenv("ENV_PDF_SUBFOLDER_PATH")
-    print(f"PDF Subfolder Path: {PDF_SUBFOLDER_PATH}")
+    logging.debug(f"PDF Subfolder Path: {PDF_SUBFOLDER_PATH}")
 
     # Load the HTML Body File
     MAIL_SUBJECT = os.getenv("ENV_MAIL_SUBJECT")
-    print(f"Mail Subject: {MAIL_SUBJECT}")
+    logging.debug(f"Mail Subject: {MAIL_SUBJECT}")
 
     # Load the HTML Body File
     HTML_BODY_FILE = os.getenv("ENV_MAIL_TEXT_FILE")
-    print(f"HTML Body File: {HTML_BODY_FILE}")
+    logging.debug(f"HTML Body File: {HTML_BODY_FILE}")
 
     # Load the HTML Body
-    html_body = loadHTMLBodyFile()
-    print(html_body)
+    HTML_BODY = loadHTMLBodyFile()
+    logging.debug(HTML_BODY)
+
+    # Ask, if the user wants to send an email
+    ASK_FOR_SENDING = os.getenv("ENV_ASK_FOR_SENDING")
+    logging.debug(f"ASK_FOR_SENDING: {ASK_FOR_SENDING}")
 
     print()
 
@@ -108,8 +151,8 @@ def loadHTMLBodyFile():
         with open(HTML_BODY_FILE, "r") as f:
             return f.read()
     except FileNotFoundError:
-        print(f"Error: HTML body file '{html_body_file_path}' not found.")
-        # html_body = "<p>An error occurred while loading the HTML body.</p>"
+        logging.error(f"Error: HTML body file '{html_body_file_path}' not found.")
+        # HTML_BODY = "<p>An error occurred while loading the HTML body.</p>"
         exit(1)
 
 
@@ -128,18 +171,18 @@ def loadGroupsCsv():
         FileNotFoundError: If the CSV file is not found
     """
     global df
-    print("Loading CSV file...")
+    logging.info("Loading CSV file...")
     try:
         # Read the CSV file using pandas.read_csv
         # df = pd.read_csv(PDF_SUBFOLDER_PATH + "/" + CSV_FILE, delimiter=";")
         df = pd.read_csv(CSV_FILE, delimiter=";")
 
         # Print the first few rows of the DataFrame (optional)
-        print(df.head())
+        logging.info(df.head())
         print()
 
     except FileNotFoundError:
-        print(f"Error: CSV file '{CSV_FILE}' not found.")
+        logging.error(f"Error: CSV file '{CSV_FILE}' not found.")
 
 
 def listFiles():
@@ -170,7 +213,7 @@ def listFiles():
 
     # Sort the list of files (ascending order)
     files.sort()
-    print(f"All files in {PDF_SUBFOLDER_PATH}: {files}")
+    logging.debug(f"All files in {PDF_SUBFOLDER_PATH}: {files}")
 
     # Print each sorted file
     for filename in files:
@@ -210,10 +253,10 @@ def getEmailFromGroup(groupname):
         # df["Name"] == groupname creates a boolean mask
         # Select the Email column and choose the first value (should be the only one)
         email = df.loc[df["Name"] == groupname, "Email"].values[0]
-        print(f"Email for '{groupname}': {email}")
+        logging.info(f"Email for '{groupname}': {email}")
         return email
     except IndexError:
-        print(f"Name '{groupname}' not found in the DataFrame.")
+        logging.error(f"Name '{groupname}' not found in the DataFrame.")
         email = "Not found"
         return email
 
@@ -228,7 +271,7 @@ def convertAttachment(attachment):
     Returns:
         MIMEBase: A mime base object containing the attachment file
     """
-    print(f"attachment: {attachment}")
+    logging.info(f"attachment: {attachment}")
     # Get the content type of the file
     content_type, encoding = mimetypes.guess_type(attachment)
     # Split the content type into main and sub type
@@ -281,13 +324,13 @@ def prepareAndSendEmail(groupname):
     mimeMessage["subject"] = MAIL_SUBJECT
 
     # Replace the placeholder with the group name
-    # html_body = html_body.replace("[Group Name]", group_name)  # Replace placeholder
+    # HTML_BODY = HTML_BODY.replace("[Group Name]", group_name)  # Replace placeholder
 
     # Attach the HTML body
-    mimeMessage.attach(MIMEText(html_body, "html"))
+    mimeMessage.attach(MIMEText(HTML_BODY, "html"))
 
     # Print the attachments
-    print(f"file_attachments: {file_attachments}")
+    logging.info(f"file_attachments: {file_attachments}")
 
     # Attach the files
     for attachment in file_attachments:
@@ -296,6 +339,7 @@ def prepareAndSendEmail(groupname):
     # Convert the mime message to a safe base64 string
     raw_string = base64.urlsafe_b64encode(mimeMessage.as_bytes()).decode()
 
+    if 
     try:
         # Send the email
         message = (
@@ -304,8 +348,8 @@ def prepareAndSendEmail(groupname):
             .send(userId="me", body={"raw": raw_string})
             .execute()
         )
-        print(message)
-        print("Email sent successfully (initial processing).")
+        logging.info(message)
+        logging.info("Email sent successfully (initial processing).")
 
         # Move the sent files to the old subfolder
         moveFile2Old()
@@ -338,7 +382,7 @@ def moveFile2Old():
         # Rename the file by moving it to the old subfolder
         os.rename(attachment, f"{PDF_SUBFOLDER_PATH}/old/{file_name}")
 
-        print(f"File '{file_name}' moved to the old subfolder.")
+        logging.info(f"File '{file_name}' moved to the old subfolder.")
 
 
 # Load the environment variables from .env file
@@ -358,8 +402,11 @@ def generateMailService():
 
 loadEnvVars()
 
+# setupLogging()
+
 # Generate the Gmail API service client
 generateMailService()
+setupLogging()
 
 # Loads the CSV file and prints the first few rows
 loadGroupsCsv()
