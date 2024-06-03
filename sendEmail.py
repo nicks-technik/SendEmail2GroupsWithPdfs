@@ -50,7 +50,8 @@ def loadEnvVars():
     global PDF_SUBFOLDER_PATH
     global MAIL_SUBJECT
     global HTML_BODY_FILE
-    global html_body
+    global ASK_FOR_SENDING
+    global HTML_BODY
 
     # Load the Client Secret File
     CLIENT_SECRET_FILE = os.getenv("ENV_SECURITY_JSON")
@@ -73,8 +74,12 @@ def loadEnvVars():
     print(f"HTML Body File: {HTML_BODY_FILE}")
 
     # Load the HTML Body
-    html_body = loadHTMLBodyFile()
-    print(html_body)
+    HTML_BODY = loadHTMLBodyFile()
+    print(HTML_BODY)
+
+    # Should be asked before sending
+    ASK_FOR_SENDING = os.getenv("ENV_ASK_FOR_SENDING")
+    print(f"HTML Body File: {ASK_FOR_SENDING}")
 
     print()
 
@@ -109,7 +114,7 @@ def loadHTMLBodyFile():
             return f.read()
     except FileNotFoundError:
         print(f"Error: HTML body file '{html_body_file_path}' not found.")
-        # html_body = "<p>An error occurred while loading the HTML body.</p>"
+        # HTML_BODY = "<p>An error occurred while loading the HTML body.</p>"
         exit(1)
 
 
@@ -210,6 +215,7 @@ def getEmailFromGroup(groupname):
         # df["Name"] == groupname creates a boolean mask
         # Select the Email column and choose the first value (should be the only one)
         email = df.loc[df["Name"] == groupname, "Email"].values[0]
+        print()
         print(f"Email for '{groupname}': {email}")
         return email
     except IndexError:
@@ -228,7 +234,7 @@ def convertAttachment(attachment):
     Returns:
         MIMEBase: A mime base object containing the attachment file
     """
-    print(f"attachment: {attachment}")
+    # print(f"attachment: {attachment}")
     # Get the content type of the file
     content_type, encoding = mimetypes.guess_type(attachment)
     # Split the content type into main and sub type
@@ -281,10 +287,10 @@ def prepareAndSendEmail(groupname):
     mimeMessage["subject"] = MAIL_SUBJECT
 
     # Replace the placeholder with the group name
-    # html_body = html_body.replace("[Group Name]", group_name)  # Replace placeholder
+    # HTML_BODY = HTML_BODY.replace("[Group Name]", group_name)  # Replace placeholder
 
     # Attach the HTML body
-    mimeMessage.attach(MIMEText(html_body, "html"))
+    mimeMessage.attach(MIMEText(HTML_BODY, "html"))
 
     # Print the attachments
     print(f"file_attachments: {file_attachments}")
@@ -295,6 +301,18 @@ def prepareAndSendEmail(groupname):
 
     # Convert the mime message to a safe base64 string
     raw_string = base64.urlsafe_b64encode(mimeMessage.as_bytes()).decode()
+
+    if ASK_FOR_SENDING:
+        # print("\tDo You Want To Continue (Y/y)es Or (N/n)o?")
+        cont = input("Do you want to continue sending email? (Y/y)es/(N/n)o > ")
+
+        while cont.lower() not in ("y", "n"):
+            cont = input("Do you want to continue sending email? (Y/y)es/(N/n)o > ")
+
+        if cont == "n":
+            print()
+            print("\tProgram stopped.")
+            exit(1)
 
     try:
         # Send the email
