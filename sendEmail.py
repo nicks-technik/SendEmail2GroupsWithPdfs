@@ -37,16 +37,18 @@ def setupLogging():
 
     # Load the LOG_LEVEL
     LOG_LEVEL = os.getenv("ENV_LOG_LEVEL", "WARNING").upper()
-    # LOG_LEVEL = os.getenv("ENV_LOG_LEVEL")
     # LOG_LEVEL = logging.DEBUG
     print(f"LOG_LEVEL: {LOG_LEVEL}")
 
     # Load the LOG_FILE_NAME
-    LOG_FILE_NAME = os.getenv("ENV_LOG_FILE_NAME")
+    LOG_FILE_NAME = os.getenv("ENV_LOG_FILE_NAME", "sendEmail.log")
     print(f"LOG_FILE: {LOG_FILE_NAME}")
 
+    # LOG_LEVEL = logging.WARNING
     logger = logging.getLogger(__name__)
-    logger.setLevel(level=LOG_LEVEL)
+    # logger.setLevel(level=int(LOG_LEVEL))
+    # logger.setLevel("level=int(LOG_LEVEL)")
+    logger.setLevel(LOG_LEVEL)
 
     formatter = logging.Formatter("%(asctime)s:%(name)s:%(message)s")
 
@@ -238,6 +240,11 @@ def listFiles():
     # Check if the last attachment is already sended
     if len(file_attachments) > 0:
         prepareAndSendEmail(group_name)
+
+    # Wait, before the log is gone
+    if ASK_FOR_SENDING:
+        print()
+        input("Program ready. You can check the above log. Please press Enter?")
 
 
 def getEmailFromGroup(groupname):
